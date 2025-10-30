@@ -1,0 +1,30 @@
+services:
+  zap-back:
+    build: .
+    container_name: zap-back
+    ports:
+      - "10000:10000"
+    env_file:
+      - .env
+    environment:
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - PUPPETEER_SKIP_DOWNLOAD=true
+    volumes:
+      - wwebjs_data:/app/data/wwebjs
+      - media_data:/app/data/media
+    restart: unless-stopped
+    depends_on:
+      - zap-redis
+
+  zap-redis:
+    image: redis:7-alpine
+    container_name: zap-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  wwebjs_data:
+  media_data:
+  redis_data:
