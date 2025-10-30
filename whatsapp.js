@@ -65,7 +65,7 @@ async function enrichAndEmitMessage(rawMsg, direction) {
     try {
       const contact = await client.getContactById(authorJid);
       authorName = bestName(contact);
-    } catch {}
+    } catch { }
 
     const peerJid = isGroup ? null : (fromMe ? to : from);
 
@@ -127,18 +127,19 @@ function getClient() {
   client = new Client({
     authStrategy: new LocalAuth({
       clientId: process.env.WWEBJS_CLIENT_ID || 'whatsapp-bot',
-      dataPath: process.env.WWEBJS_STORE || path.join(__dirname, 'data', 'wwebjs')
+      dataPath: process.env.WWEBJS_DATA_PATH || '/data/wwebjs'
     }),
     puppeteer: {
       headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--window-size=1920,1080'
-      ]
+        '--no-zygote',
+        '--single-process'
+      ],
     }
   });
 

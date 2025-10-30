@@ -1,0 +1,33 @@
+# render.yaml
+services:
+  - type: web
+    name: zap-back
+    env: docker
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /healthz
+    # Render injeta PORT automaticamente (padrão 10000)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/chromium
+      - key: WWEBJS_DATA_PATH
+        value: /data/wwebjs
+      # --- teus segredos abaixo ---
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGO_DB
+        value: whatsapp
+      - key: MONGO_COL
+        value: messages
+      - key: DASH_TOKEN
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: MSG_TTL_DAYS
+        value: "0"
+    disk:
+      name: wwebjs-session
+      mountPath: /data
+      sizeGB: 1
