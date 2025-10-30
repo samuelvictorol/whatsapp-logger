@@ -4,7 +4,6 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
-const QRCode = require('qrcode');
 const mime = require('mime-types');
 const Redis = require('ioredis');
 
@@ -22,6 +21,7 @@ const REDIS_URL = process.env.REDIS_URL || '';
 const FLUSH_SECONDS = Math.max(30, Number(process.env.FLUSH_SECONDS || 3600));
 const FLUSH_BATCH_LIMIT = Math.max(100, Number(process.env.FLUSH_BATCH_LIMIT || 5000));
 const REDIS_LIST_KEY = process.env.REDIS_LIST_KEY || 'wapp:buffer:v1';
+const REDIS_BOOT_TIMEOUT_MS = Number(process.env.REDIS_BOOT_TIMEOUT_MS || 10000);
 
 const app = express();
 app.use(express.json({ limit: '30mb' }));
@@ -83,7 +83,7 @@ async function ensureIndexes() {
     if (!MONGO_URI) {
       console.warn('[mongo] MONGODB_URI ausente. Persistência desativada.');
     } else {
-      mongo = new MongoClient(MONGO_URI, { maxPoolSize: 8 });
+      mongo = new MongoClient(MONGO_URI, { maxPoolSize: 8, serverSelectionTimeoutMS: 12000 });
       await mongo.connect();
       db = mongo.db(DB_NAME);
       messages = db.collection(COL_NAME);
@@ -97,11 +97,12 @@ async function ensureIndexes() {
 
 /* --------- Redis opcional --------- */
 let redis = null;
-if (REDIS_URL) {
-  redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 2, lazyConnect: false });
-  redis.on('error', () => console.warn('[redis] erro:'));
-  console.log(`[flush] agendado a cada ${FLUSH_SECONDS}s • batch máx ${FLUSH_BATCH_LIMIT} • key=${REDIS_LIST_KEY}`);
-  setInterval(async () => {
+let flushTimer = null;
+
+async function startFlusher() {
+  if (!messages || !redis || redis.status !== 'ready') return;
+  console.log(`[Redis] flush agendado a cada ${FLUSH_SECONDS}s • batch máx ${FLUSH_BATCH_LIMIT} • key=${REDIS_LIST_KEY}`);
+  flushTimer = setInterval(async () => {
     try {
       if (!messages) return;
       let batch = [];
@@ -127,7 +128,31 @@ if (REDIS_URL) {
     } catch (e) {
       console.warn('[flush] falhou:', e.message);
     }
-  }, FLUSH_SECONDS * 1000).unref();
+  }, FLUSH_SECONDS * 1000);
+  flushTimer.unref();
+}
+
+if (REDIS_URL) {
+  redis = new Redis(REDIS_URL, {
+    maxRetriesPerRequest: 2,
+    lazyConnect: false,
+    tls: REDIS_URL.startsWith('rediss://') ? {} : undefined
+  });
+  redis.on('error', (e) => console.warn('[redis] erro:', e?.message || e));
+  // Se não ficar pronto em REDIS_BOOT_TIMEOUT_MS, desativa buffer
+  Promise.race([
+    new Promise(r => redis.once('ready', r)),
+    new Promise(r => redis.once('error', r)),
+    new Promise(r => setTimeout(r, REDIS_BOOT_TIMEOUT_MS))
+  ]).then(() => {
+    if (redis && redis.status === 'ready') startFlusher();
+    else {
+      console.warn('[redis] indisponível, usando gravação direta no Mongo');
+      try { redis && redis.disconnect(); } catch {}
+      redis = null;
+      if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
+    }
+  });
 }
 
 /* --------- WhatsApp (singleton) --------- */
@@ -135,6 +160,13 @@ const wpp = getClient();
 
 /* --------- SSE: /events --------- */
 const clients = new Set();
+
+// snapshot em memória p/ reemitir imediatamente ao conectar
+const last = {
+  status: null, // objeto
+  qr: null,     // string
+  qrAt: 0       // timestamp
+};
 
 function auth(req, res, next) {
   if (!TOKEN) return next();
@@ -147,24 +179,35 @@ function auth(req, res, next) {
 }
 
 app.get('/events', auth, (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  // Headers p/ SSE + proxies
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
-  res.write('retry: 10000\n\n');
+  res.setHeader('X-Accel-Buffering', 'no'); // Nginx-like proxies
+  res.flushHeaders?.(); // envia cabeçalhos imediatamente se suportado
 
   const client = { res };
   clients.add(client);
 
+  // sinal inicial
   res.write(`event: status\ndata: ${JSON.stringify({ stage: 'connected' })}\n\n`);
 
+  // snapshot: reenvia último status e QR recente
+  if (last.status) {
+    res.write(`event: status\ndata: ${JSON.stringify(last.status)}\n\n`);
+  }
+  if (last.qr && Date.now() - last.qrAt < 15000) {
+    res.write(`event: qr\ndata: ${JSON.stringify({ qr: last.qr })}\n\n`);
+  }
+
+  // heartbeat curto
   const hb = setInterval(() => {
     res.write(`event: ping\ndata: ${Date.now()}\n\n`);
-  }, 25000);
+  }, 15000);
 
-  req.on('close', () => {
-    clearInterval(hb);
-    clients.delete(client);
-  });
+  const cleanup = () => { clearInterval(hb); clients.delete(client); };
+  req.on('close', cleanup);
+  req.on('aborted', cleanup);
 });
 
 function push(event, payload) {
@@ -173,15 +216,19 @@ function push(event, payload) {
 }
 
 /* --------- Bridge: WhatsApp -> SSE + persistência --------- */
-bus.on('qr', async (p) => {
-  try {
-    const dataUrl = await QRCode.toDataURL(p.qr, { errorCorrectionLevel: 'M', margin: 1, width: 300 });
-    push('qr', { qr: p.qr, qrDataURL: dataUrl });
-  } catch {
-    push('qr', p);
+bus.on('qr', (p) => {
+  // envia QR cru (string). frontend renderiza (qrcode/toCanvas)
+  if (p?.qr) {
+    last.qr = p.qr;
+    last.qrAt = Date.now();
+    push('qr', { qr: p.qr });
   }
 });
-bus.on('status', (p) => push('status', p));
+
+bus.on('status', (p) => {
+  last.status = p || null;
+  push('status', p);
+});
 
 function shouldIgnore(p) {
   return p.from === 'status@broadcast' || p.to === 'status@broadcast';
@@ -196,7 +243,7 @@ bus.on('message', async (p) => {
     const ts = Number(p.ts || p.timestamp || Date.now());
     const doc = {
       ...p,
-      ts: ts < 1e12 ? ts * 1000 : ts,
+      ts: ts < 1e12 ? ts * 1000 : ts, // normaliza ts
       createdAt: new Date()
     };
     if (doc.id) doc._id = doc.id;
@@ -213,7 +260,21 @@ bus.on('message', async (p) => {
 });
 
 /* --------- REST --------- */
-app.get('/healthz', (_, res) => res.send('ok'));
+app.get('/status', (_, res) => {
+  res.json({
+    ok: true,
+    lastStatus: last.status,
+    lastQrAgeMs: last.qrAt ? (Date.now() - last.qrAt) : null
+  });
+});
+
+app.get('/healthz', async (_, res) => {
+  res.status(200).json({
+    ok: true,
+    mongo: !!messages,
+    redis: redis ? redis.status : 'disabled'
+  });
+});
 
 app.post('/send', auth, async (req, res) => {
   try {
@@ -280,4 +341,4 @@ app.get('/chats', auth, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`[http] up :${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`[http] up :${PORT}`));

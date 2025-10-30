@@ -65,7 +65,7 @@ async function enrichAndEmitMessage(rawMsg, direction) {
     try {
       const contact = await client.getContactById(authorJid);
       authorName = bestName(contact);
-    } catch { }
+    } catch {}
 
     const peerJid = isGroup ? null : (fromMe ? to : from);
 
@@ -131,7 +131,7 @@ function getClient() {
     }),
     puppeteer: {
       headless: true,
-       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -141,6 +141,7 @@ function getClient() {
         '--single-process'
       ],
     },
+    // Evita cache problemático de versão web
     webVersionCache: { type: 'none' },
   });
 
@@ -152,6 +153,7 @@ function getClient() {
     client.on('authenticated', () => bus.emit('status', { stage: 'authenticated' }));
     client.on('ready', () => bus.emit('status', { stage: 'ready' }));
     client.on('disconnected', (reason) => bus.emit('status', { stage: 'disconnected', reason }));
+    client.on('auth_failure', (m) => bus.emit('status', { stage: 'auth_failure', message: m }));
 
     client.on('message', async (msg) => {
       await enrichAndEmitMessage(msg, 'in');
