@@ -131,7 +131,8 @@ if (REDIS_URL) {
     lazyConnect: false,
     tls: REDIS_URL.startsWith('rediss://') ? {} : undefined
   });
-  redis.on('error', (e) => console.warn('[redis] erro:', e?.message || e));
+  redis.on('error', (e) => {console.warn('[redis] erro:', e?.message || e);});
+  redis.on('connect', () => { console.log('[redis] conectado'); });
   Promise.race([
     new Promise(r => redis.once('ready', r)),
     new Promise(r => redis.once('error', r)),
