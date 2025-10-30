@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WhatsApp Logger – Documentação da API</title>
+<style>
+  :root{--bg:#0b0f14;--fg:#e8eef6;--muted:#9fb0c2;--card:#121821;--accent:#7af59b;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
+  header{position:sticky;top:0;padding:18px 22px;background:#0e131a;border-bottom:1px solid #1f2b3a}
+  h1{margin:0;font-size:20px}
+  main{max-width:980px;margin:24px auto;padding:0 16px 48px}
+  .muted{color:var(--muted)}
+  .card{background:var(--card);border:1px solid #1f2b3a;border-radius:14px;padding:16px;margin:14px 0}
+  code,kbd{background:#0c1117;border:1px solid #182233;border-radius:6px;padding:0 6px}
+  pre{background:#0c1117;border:1px solid #182233;border-radius:12px;padding:14px;overflow:auto}
+  a{color:var(--accent);text-decoration:none}
+  table{width:100%;border-collapse:collapse;margin:8px 0 0}
+  th,td{padding:10px;border-bottom:1px solid #273346;vertical-align:top}
+  th{font-weight:600;text-align:left}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #28424a;background:#0f1916;color:#9de7ba;font-size:12px}
+  .get{background:#0f1621;border-color:#22314a;color:#8fb3ff}
+  .post{background:#16140f;border-color:#44351f;color:#ffd28c}
+  nav{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 20px}
+  nav a{border:1px solid #1f2b3a;border-radius:999px;padding:6px 10px}
+  h2{margin:26px 0 8px}
+  small{font-size:12px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>WhatsApp Logger — Documentação da API <span class="muted">/ Node + whatsapp-web.js</span></h1>
+</header>
+
+<main>
+
+  <nav>
+    <a href="#auth">Autenticação</a>
+    <a href="#sse">Eventos SSE /events</a>
+    <a href="#media">Serviço de mídia /media</a>
+    <a href="#send">POST /send</a>
+    <a href="#messages">GET /messages</a>
+    <a href="#chats">GET /chats</a>
+    <a href="#healthz">GET /healthz</a>
+    <a href="#env">Variáveis de ambiente</a>
+    <a href="#payload">Esquema de mensagem</a>
+    <a href="#integracao">Guia de integração</a>
+  </nav>
+
+  <section id="auth" class="card">
+    <h2>🔐 Autenticação (DASH_TOKEN)</h2>
+    <p>
+      Se <code>DASH_TOKEN</code> estiver definido no <em>.env</em>, os endpoints
+      <code>/events</code>, <code>/send</code>, <code>/messages</code>, <code>/chats</code> exigem token:
+    </p>
+    <ul>
+      <li>Por cabeçalho: <code>Authorization: Bearer &lt;DASH_TOKEN&gt;</code></li>
+      <li>Ou por query string em SSE: <code>/events?token=&lt;DASH_TOKEN&gt;</code></li>
+    </ul>
+    <p>Se <code>DASH_TOKEN</code> não estiver definido, a API permanece aberta (somente para desenvolvimento).</p>
+  </section>
+
+  <section id="sse" class="card">
+    <h2>📡 SSE — <span class="pill get">GET</span> <code>/events</code></h2>
+    <p>
+      Stream de eventos via <strong>Server-Sent Events</strong>. É por aqui que chegam:
+      <strong>status</strong>, <strong>qr</strong> (como DataURL) e <strong>message</strong> (payloads de mensagens).
+    </p>
+
+<pre><code class="language-js">// Exemplo (browser):
+const token = 'SEU_DASH_TOKEN_OPCIONAL';
+const es = new EventSource(token ? `/events?token=${encodeURIComponent(token)}` : '/events');
+
+es.addEventListener('status', (e) =&gt; {
+  const data = JSON.parse(e.data);
+  // stages: connected | loading | authenticated | ready | disconnected | warn | error
+  console.log('status', data);
+});
+
+es.addEventListener('qr', (e) =&gt; {
+  const data = JSON.parse(e.data);
+  // data.qrDataURL (img base64) ou { qr: 'texto' } como fallback
+  console.log('qr', !!data.qrDataURL);
+});
+
+es.addEventListener('message', (e) =&gt; {
+  const msg = JSON.parse(e.data);
+  // ver esquema em "Esquema de mensagem" abaixo
+  console.log('message', msg);
+});</code></pre>
+
+    <table>
+      <thead><tr><th>Evento</th><th>Descrição</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>status</code></td>
+          <td>Fases do cliente WhatsApp (<em>loading, authenticated, ready</em>…), warnings e erros.</td>
+          <td><code>{"stage":"ready"}</code></td>
+        </tr>
+        <tr>
+          <td><code>qr</code></td>
+          <td>QR Code para parear o WhatsApp. Preferir <code>qrDataURL</code> (imagem base64).</td>
+          <td><code>{"qrDataURL":"data:image/png;base64,..."}</code></td>
+        </tr>
+        <tr>
+          <td><code>message</code></td>
+          <td>Mensagens enriquecidas (texto, imagem, sticker, áudio, vídeo, docs…).</td>
+          <td>Ver “Esquema de mensagem”.</td>
+        </tr>
+        <tr>
+          <td><code>ping</code></td>
+          <td>Heartbeat automático para manter a conexão aberta.</td>
+          <td>timestamp numérico</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="media" class="card">
+    <h2>🖼️ Serviço de mídia</h2>
+    <p>Ao receber mídia, o backend salva no disco em <code>MEDIA_DIR</code> e expõe:</p>
+    <ul>
+      <li><span class="pill get">GET</span> <code>/media/&lt;id&gt;.&lt;ext&gt;</code> — estático (com <em>Content-Type</em> correto)</li>
+      <li><span class="pill get">GET</span> <code>/media/by-id/:id</code> — fallback quando você só conhece o <code>id</code></li>
+    </ul>
+
+<pre><code class="language-html">&lt;!-- Exibição no front (ordem recomendada): --&gt;
+&lt;img src="&lt;dataUrlPreview&gt; || &lt;mediaUrl&gt; || /media/by-id/&lt;id&gt;" /&gt;
+
+&lt;audio controls src="&lt;mediaUrl&gt; || /media/by-id/&lt;id&gt;"&gt;&lt;/audio&gt;
+
+&lt;video controls src="&lt;mediaUrl&gt; || /media/by-id/&lt;id&gt;"&gt;&lt;/video&gt;</code></pre>
+    <small class="muted">Obs.: stickers chegam como imagem (ex.: <code>image/webp</code>), e PTT como áudio (<code>audio/ogg</code>).</small>
+  </section>
+
+  <section id="send" class="card">
+    <h2>✉️ Envio — <span class="pill post">POST</span> <code>/send</code></h2>
+    <p>Envia uma mensagem de texto para um chat ou contato.</p>
+    <table>
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>to</code></td><td>string</td><td>sim</td><td>JID do chat. Ex.: <code>5561XXXXXXXX@c.us</code> (contato) ou <code>XXXXXXXX@g.us</code> (grupo)</td></tr>
+        <tr><td><code>body</code></td><td>string</td><td>sim</td><td>Texto da mensagem</td></tr>
+      </tbody>
+    </table>
+
+<pre><code class="language-bash"># Com token (se configurado)
+curl -X POST http://localhost:10000/send \
+  -H 'Authorization: Bearer SEU_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{"to":"5561999999999@c.us","body":"Olá!"}'</code></pre>
+
+<pre><code class="language-js">// fetch no browser
+await fetch('/send', {
+  method: 'POST',
+  headers: {'Content-Type':'application/json','Authorization':'Bearer SEU_TOKEN'},
+  body: JSON.stringify({ to: '5561999999999@c.us', body: 'Olá!' })
+});</code></pre>
+
+    <small class="muted">Dica: no front já existe “bolha otimista” para evitar duplicação quando o <code>message_create</code> chegar via SSE.</small>
+  </section>
+
+  <section id="messages" class="card">
+    <h2>📜 Histórico — <span class="pill get">GET</span> <code>/messages</code></h2>
+    <p>Lista mensagens persistidas (MongoDB). Somente mensagens “normais” (broadcast/status são ignoradas na ingestão).</p>
+    <table>
+      <thead><tr><th>Query</th><th>Tipo</th><th>Default</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>limit</code></td><td>int</td><td>50 (máx 500)</td><td>Quantidade de documentos</td></tr>
+        <tr><td><code>chatId</code></td><td>string</td><td>—</td><td>Filtra por <code>chatId</code></td></tr>
+        <tr><td><code>days</code> / <code>sinceDays</code></td><td>int</td><td>—</td><td>Janela deslizante de N dias (filtro de leitura; <em>não apaga</em>)</td></tr>
+      </tbody>
+    </table>
+
+<pre><code class="language-bash">curl -H 'Authorization: Bearer SEU_TOKEN' \
+"http://localhost:10000/messages?limit=100&amp;days=7"</code></pre>
+  </section>
+
+  <section id="chats" class="card">
+    <h2>🗂️ Chats — <span class="pill get">GET</span> <code>/chats</code></h2>
+    <p>Lista agregada de conversas (última mensagem por chat).</p>
+    <table>
+      <thead><tr><th>Query</th><th>Tipo</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>days</code> / <code>sinceDays</code></td><td>int</td><td>Filtro de janela (aplica <code>$match</code> antes do <code>$group</code>)</td></tr>
+      </tbody>
+    </table>
+
+<pre><code class="language-bash">curl -H 'Authorization: Bearer SEU_TOKEN' \
+"http://localhost:10000/chats?days=30"</code></pre>
+  </section>
+
+  <section id="healthz" class="card">
+    <h2>✅ Healthcheck — <span class="pill get">GET</span> <code>/healthz</code></h2>
+    <p>Retorna <code>ok</code> quando o servidor HTTP está respondendo.</p>
+  </section>
+
+  <section id="payload" class="card">
+    <h2>📦 Esquema de mensagem (evento SSE <code>message</code>)</h2>
+
+<pre><code class="language-json">{
+  "id": "true_wapp_msg_id",             // estável; também usado como _id no Mongo quando disponível
+  "direction": "in|out",                // baseado em fromMe
+  "chatId": "XXXXXXXXXX@c.us|@g.us",
+  "chatName": "Nome do chat (se conhecido)",
+  "isGroup": true|false,
+
+  "from": "jid de origem",
+  "to": "jid de destino",
+  "author": "jid autor (em grupo)",
+  "authorName": "melhor nome resolvido",
+  "fromMe": true|false,
+
+  "body": "texto (quando houver)",
+  "type": "chat|image|video|audio|ptt|sticker|document",
+  "ts": 1729960000000,                  // timestamp em milissegundos
+
+  "mimetype": "image/webp|audio/ogg|...",
+  "filename": "nome original (quando houver)",
+  "size": 12345,                        // bytes (se baixou)
+  "mediaUrl": "/media/<id>.<ext>",      // servido com Content-Type correto
+  "dataUrlPreview": "data:image/...;base64,...", // apenas imagens pequenas
+
+  "peerJid": "no DM, o outro lado"     // ajuda o front a agrupar
+}</code></pre>
+
+    <small class="muted">
+      Observações: <code>status@broadcast</code> é ignorado na ingestão. Stickers chegam como imagem (geralmente
+      <code>image/webp</code>). PTT vem como áudio (<code>audio/ogg</code>).
+    </small>
+  </section>
+
+  <section id="env" class="card">
+    <h2>⚙️ Variáveis de ambiente principais</h2>
+    <table>
+      <thead><tr><th>Variável</th><th>Default</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>PORT</code></td><td>10000</td><td>Porta HTTP</td></tr>
+        <tr><td><code>DASH_TOKEN</code></td><td>—</td><td>Token do painel / endpoints protegidos</td></tr>
+        <tr><td><code>MONGODB_URI</code></td><td>—</td><td>Conexão MongoDB</td></tr>
+        <tr><td><code>MONGO_DB</code></td><td><code>whatsapp</code></td><td>Banco</td></tr>
+        <tr><td><code>MONGO_COL</code></td><td><code>messages</code></td><td>Coleção</td></tr>
+        <tr><td><code>MSG_TTL_DAYS</code></td><td>0</td><td>Se &gt;0, cria TTL por <code>createdAt</code></td></tr>
+        <tr><td><code>MEDIA_DIR</code></td><td><code>/app/data/media</code></td><td>Pasta de mídia</td></tr>
+        <tr><td><code>REDIS_URL</code></td><td>—</td><td>Ativa buffer (flush em lote)</td></tr>
+        <tr><td><code>FLUSH_SECONDS</code></td><td>3600</td><td>Intervalo de flush para o Mongo (quando usando Redis)</td></tr>
+        <tr><td><code>FLUSH_BATCH_LIMIT</code></td><td>5000</td><td>Tamanho máximo do lote de flush</td></tr>
+        <tr><td><code>REDIS_LIST_KEY</code></td><td><code>wapp:buffer:v1</code></td><td>Lista usada para buffer</td></tr>
+        <tr><td><code>WWEBJS_CLIENT_ID</code></td><td><code>whatsapp-bot</code></td><td>Identificador da sessão</td></tr>
+        <tr><td><code>WWEBJS_STORE</code></td><td><code>/app/data/wwebjs</code></td><td>Persistência local do WhatsApp</td></tr>
+        <tr><td><code>PUPPETEER_EXECUTABLE_PATH</code></td><td><code>/usr/bin/chromium</code></td><td>Chromium no Render/Docker</td></tr>
+        <tr><td><code>PUPPETEER_SKIP_DOWNLOAD</code></td><td><code>true</code></td><td>Evita baixar o Chrome no build</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="integracao" class="card">
+    <h2>🚀 Guia de integração rápida</h2>
+    <ol>
+      <li>Abra um canal SSE em <code>/events</code> (com token, se houver) e:
+        <ul>
+          <li>Renderize <code>qr.qrDataURL</code> em um &lt;img&gt; para parear.</li>
+          <li>Espere <code>status.stage === "ready"</code>.</li>
+        </ul>
+      </li>
+      <li>Monte sua UI ouvindo o evento <code>message</code>. Para cada mensagem:
+        <ul>
+          <li>Se <code>type</code> começa com imagem/vídeo/áudio, use <code>mediaUrl</code> (ou <code>/media/by-id/:id</code>).</li>
+          <li>Para sticker, trate como imagem.</li>
+          <li>Para PTT/áudio, use &lt;audio controls src="..."&gt;.</li>
+        </ul>
+      </li>
+      <li>Para enviar texto, use <code>POST /send</code> com <code>{to, body}</code>.</li>
+      <li>Para popular histórico/contatos:
+        <ul>
+          <li><code>GET /messages?limit=50&amp;days=7</code></li>
+          <li><code>GET /chats?days=30</code></li>
+        </ul>
+      </li>
+    </ol>
+
+<pre><code class="language-js">// Exemplo mínimo (browser)
+const token = 'SEU_DASH_TOKEN';
+const es = new EventSource(`/events?token=${encodeURIComponent(token)}`);
+es.addEventListener('qr', e =&gt; {
+  const d = JSON.parse(e.data);
+  document.querySelector('#qr').src = d.qrDataURL;
+});
+es.addEventListener('message', e =&gt; {
+  const m = JSON.parse(e.data);
+  // renderize conforme m.type (chat/image/sticker/audio/video/document)
+});
+
+// Envio:
+await fetch('/send', {
+  method:'POST',
+  headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+  body: JSON.stringify({ to:'5561999999999@c.us', body:'Olá!' })
+});</code></pre>
+
+    <small class="muted">
+      Dica: já há deduplicação de mensagens no front usando “bolhas otimistas” e conciliação quando o <code>message_create</code> chega.
+    </small>
+  </section>
+
+  <section class="card">
+    <h2>🧭 Notas importantes</h2>
+    <ul>
+      <li>Mensagens de <code>status@broadcast</code> são ignoradas na ingestão.</li>
+      <li>Se <code>MSG_TTL_DAYS &gt; 0</code>, a coleção cria TTL por <code>createdAt</code> (limpeza automática no Mongo).</li>
+      <li>Com <code>REDIS_URL</code>, a persistência é feita em <em>lotes</em> a cada <code>FLUSH_SECONDS</code>.</li>
+      <li>Ao rodar no Render, use <code>PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium</code> e
+          <code>PUPPETEER_SKIP_DOWNLOAD=true</code> (já contemplado no Dockerfile).</li>
+    </ul>
+  </section>
+
+  <p class="muted">Feito com 💚 por Samuel Victor.</p>
+</main>
+</body>
+</html>
