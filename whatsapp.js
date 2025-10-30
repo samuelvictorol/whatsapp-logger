@@ -59,7 +59,7 @@ async function enrichAndEmitMessage(rawMsg, direction) {
     const to = rawMsg.to;
     const timestamp = rawMsg.timestamp;
     const authorJid = rawMsg.author || rawMsg.from;
-    const type = rawMsg.type || 'chat'; // chat, image, video, audio, ptt, sticker, document...
+    const type = rawMsg.type || 'chat';
 
     let authorName = null;
     try {
@@ -84,8 +84,6 @@ async function enrichAndEmitMessage(rawMsg, direction) {
           size = buf.length;
           fs.writeFileSync(abspath, buf);
           mediaUrl = `/media/${fileBase}`;
-
-          // preview inline para imagens pequenas
           if (mimetype && mimetype.startsWith('image/') && buf.length < 200 * 1024) {
             dataUrlPreview = `data:${mimetype};base64,${media.data}`;
           }
@@ -109,9 +107,7 @@ async function enrichAndEmitMessage(rawMsg, direction) {
       body: rawMsg.body || '',
       type,
       ts: (timestamp && timestamp * 1000) || Date.now(),
-      // mídia
       mediaUrl, mimetype, filename, size, dataUrlPreview,
-      // util p/ front
       peerJid,
     };
 
@@ -141,7 +137,6 @@ function getClient() {
         '--single-process'
       ],
     },
-    // Evita cache problemático de versão web
     webVersionCache: { type: 'none' },
   });
 
@@ -155,13 +150,8 @@ function getClient() {
     client.on('disconnected', (reason) => bus.emit('status', { stage: 'disconnected', reason }));
     client.on('auth_failure', (m) => bus.emit('status', { stage: 'auth_failure', message: m }));
 
-    client.on('message', async (msg) => {
-      await enrichAndEmitMessage(msg, 'in');
-    });
-
-    client.on('message_create', async (msg) => {
-      if (msg.fromMe) await enrichAndEmitMessage(msg, 'out');
-    });
+    client.on('message', async (msg) => { await enrichAndEmitMessage(msg, 'in'); });
+    client.on('message_create', async (msg) => { if (msg.fromMe) await enrichAndEmitMessage(msg, 'out'); });
 
     client.initialize().catch((e) => bus.emit('status', { stage: 'error', error: String(e) }));
   }

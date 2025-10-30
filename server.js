@@ -14,7 +14,7 @@ const TOKEN = process.env.DASH_TOKEN || '';
 const MONGO_URI = process.env.MONGODB_URI;
 const DB_NAME = process.env.MONGO_DB || 'whatsapp';
 const COL_NAME = process.env.MONGO_COL || 'messages';
-const MSG_TTL_DAYS = Number(process.env.MSG_TTL_DAYS || 0); // 0 = desliga TTL
+const MSG_TTL_DAYS = Number(process.env.MSG_TTL_DAYS || 0);
 
 // Buffer opcional com Redis (para flush em lote)
 const REDIS_URL = process.env.REDIS_URL || '';
@@ -105,23 +105,16 @@ async function startFlusher() {
   flushTimer = setInterval(async () => {
     try {
       if (!messages) return;
-      let batch = [];
+      const batch = [];
       for (let i = 0; i < FLUSH_BATCH_LIMIT; i++) {
         const item = await redis.lpop(REDIS_LIST_KEY);
         if (!item) break;
         batch.push(JSON.parse(item));
       }
       if (!batch.length) return;
-
       const ops = batch.map(doc => {
         const key = doc._id || doc.id || `${doc.chatId}:${doc.ts}`;
-        return {
-          updateOne: {
-            filter: { _id: key },
-            update: { $set: doc },
-            upsert: true
-          }
-        };
+        return { updateOne: { filter: { _id: key }, update: { $set: doc }, upsert: true } };
       });
       await messages.bulkWrite(ops, { ordered: false });
       console.log(`[flush] persistidos ${ops.length}`);
@@ -139,7 +132,6 @@ if (REDIS_URL) {
     tls: REDIS_URL.startsWith('rediss://') ? {} : undefined
   });
   redis.on('error', (e) => console.warn('[redis] erro:', e?.message || e));
-  // Se não ficar pronto em REDIS_BOOT_TIMEOUT_MS, desativa buffer
   Promise.race([
     new Promise(r => redis.once('ready', r)),
     new Promise(r => redis.once('error', r)),
@@ -162,11 +154,14 @@ const wpp = getClient();
 const clients = new Set();
 
 // snapshot em memória p/ reemitir imediatamente ao conectar
-const last = {
-  status: null, // objeto
-  qr: null,     // string
-  qrAt: 0       // timestamp
-};
+const last = { status: null, qr: null, qrAt: 0 };
+
+function isValidQr(s) {
+  if (typeof s !== 'string') return false;
+  if (s.includes('undefined')) return false;
+  const parts = s.split(',');
+  return parts.length === 5 && parts[0].startsWith('2@');
+}
 
 function auth(req, res, next) {
   if (!TOKEN) return next();
@@ -179,28 +174,25 @@ function auth(req, res, next) {
 }
 
 app.get('/events', auth, (req, res) => {
-  // Headers p/ SSE + proxies
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // Nginx-like proxies
-  res.flushHeaders?.(); // envia cabeçalhos imediatamente se suportado
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
 
   const client = { res };
   clients.add(client);
 
-  // sinal inicial
   res.write(`event: status\ndata: ${JSON.stringify({ stage: 'connected' })}\n\n`);
 
-  // snapshot: reenvia último status e QR recente
   if (last.status) {
     res.write(`event: status\ndata: ${JSON.stringify(last.status)}\n\n`);
   }
-  if (last.qr && Date.now() - last.qrAt < 15000) {
+  // janela maior (30s) pra não perder QR recém-emitido
+  if (last.qr && Date.now() - last.qrAt < 30000) {
     res.write(`event: qr\ndata: ${JSON.stringify({ qr: last.qr })}\n\n`);
   }
 
-  // heartbeat curto
   const hb = setInterval(() => {
     res.write(`event: ping\ndata: ${Date.now()}\n\n`);
   }, 15000);
@@ -217,12 +209,11 @@ function push(event, payload) {
 
 /* --------- Bridge: WhatsApp -> SSE + persistência --------- */
 bus.on('qr', (p) => {
-  // envia QR cru (string). frontend renderiza (qrcode/toCanvas)
-  if (p?.qr) {
-    last.qr = p.qr;
-    last.qrAt = Date.now();
-    push('qr', { qr: p.qr });
-  }
+  const s = p?.qr;
+  if (!isValidQr(s)) return;        // ignora QR inválido
+  last.qr = s;
+  last.qrAt = Date.now();
+  push('qr', { qr: s });            // envia QR cru
 });
 
 bus.on('status', (p) => {
@@ -237,15 +228,10 @@ function shouldIgnore(p) {
 bus.on('message', async (p) => {
   if (shouldIgnore(p)) return;
   push('message', p);
-
   try {
     if (!messages) return;
     const ts = Number(p.ts || p.timestamp || Date.now());
-    const doc = {
-      ...p,
-      ts: ts < 1e12 ? ts * 1000 : ts, // normaliza ts
-      createdAt: new Date()
-    };
+    const doc = { ...p, ts: ts < 1e12 ? ts * 1000 : ts, createdAt: new Date() };
     if (doc.id) doc._id = doc.id;
 
     if (redis) {
@@ -261,19 +247,11 @@ bus.on('message', async (p) => {
 
 /* --------- REST --------- */
 app.get('/status', (_, res) => {
-  res.json({
-    ok: true,
-    lastStatus: last.status,
-    lastQrAgeMs: last.qrAt ? (Date.now() - last.qrAt) : null
-  });
+  res.json({ ok: true, lastStatus: last.status, lastQrAgeMs: last.qrAt ? (Date.now() - last.qrAt) : null });
 });
 
 app.get('/healthz', async (_, res) => {
-  res.status(200).json({
-    ok: true,
-    mongo: !!messages,
-    redis: redis ? redis.status : 'disabled'
-  });
+  res.status(200).json({ ok: true, mongo: !!messages, redis: redis ? redis.status : 'disabled' });
 });
 
 app.post('/send', auth, async (req, res) => {
