@@ -140,7 +140,8 @@ function getClient() {
         '--no-zygote',
         '--single-process'
       ],
-    }
+    },
+    webVersionCache: { type: 'none' },
   });
 
   if (!initialized) {
