@@ -18,9 +18,7 @@
       --accent: rgba(122, 245, 155, 0.18);
     }
 
-    * {
-      box-sizing: border-box
-    }
+    * { box-sizing: border-box }
 
     body {
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell;
@@ -55,16 +53,9 @@
       padding: 16px
     }
 
-    img {
-      max-width: 100%;
-      height: auto
-    }
+    img { max-width: 100%; height: auto }
 
-    .row {
-      display: flex;
-      gap: 8px;
-      align-items: center
-    }
+    .row { display: flex; gap: 8px; align-items: center }
 
     .row-between {
       display: flex;
@@ -73,9 +64,7 @@
       gap: 10px
     }
 
-    input,
-    button,
-    textarea {
+    input, button, textarea {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 10px;
@@ -84,14 +73,9 @@
       outline: none
     }
 
-    button {
-      cursor: pointer
-    }
+    button { cursor: pointer }
 
-    .muted {
-      color: var(--muted);
-      font-size: 12px
-    }
+    .muted { color: var(--muted); font-size: 12px }
 
     .badge {
       background: var(--ok);
@@ -102,11 +86,7 @@
       margin-left: 6px
     }
 
-    hr {
-      border: 0;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      margin: 12px 0
-    }
+    hr { border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 12px 0 }
 
     .contacts {
       max-height: 60vh;
@@ -124,18 +104,10 @@
       background: rgba(255, 255, 255, 0.05)
     }
 
-    .contact:hover {
-      background: rgba(255, 255, 255, 0.08)
-    }
+    .contact:hover { background: rgba(255, 255, 255, 0.08) }
+    .contact.active { outline: 2px solid var(--accent); background: rgba(255, 255, 255, 0.09) }
 
-    .contact.active {
-      outline: 2px solid var(--accent);
-      background: rgba(255, 255, 255, 0.09)
-    }
-
-    .contact .title {
-      font-weight: 600
-    }
+    .contact .title { font-weight: 600 }
 
     .contact .preview {
       color: var(--muted);
@@ -146,16 +118,9 @@
       text-overflow: ellipsis
     }
 
-    #chatCard {
-      grid-column: 2 / -1;
-      grid-row: 1 / span 2
-    }
+    #chatCard { grid-column: 2 / -1; grid-row: 1 / span 2 }
 
-    .split-wrap {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px
-    }
+    .split-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
 
     .split-col {
       border: 1px solid var(--border);
@@ -166,17 +131,8 @@
       padding: 8px
     }
 
-    .split-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px
-    }
-
-    .split-head h5 {
-      margin: 0;
-      font-size: 14px
-    }
+    .split-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px }
+    .split-head h5 { margin: 0; font-size: 14px }
 
     .bubble {
       max-width: 100%;
@@ -188,40 +144,14 @@
       white-space: pre-wrap
     }
 
-    .bubble.them {
-      background: rgba(255, 255, 255, 0.06);
-      border-top-left-radius: 4px
-    }
+    .bubble.them { background: rgba(255, 255, 255, 0.06); border-top-left-radius: 4px }
+    .bubble.me { background: rgba(122, 245, 155, 0.18); border-top-right-radius: 4px }
 
-    .bubble.me {
-      background: rgba(122, 245, 155, 0.18);
-      border-top-right-radius: 4px
-    }
+    .time { font-size: 10px; color: var(--muted); margin-top: 4px; text-align: right }
+    .authorTag { font-size: 11px; opacity: .85; margin-bottom: 4px }
+    .sticker { width: 160px; height: auto; }
 
-    .time {
-      font-size: 10px;
-      color: var(--muted);
-      margin-top: 4px;
-      text-align: right
-    }
-
-    .authorTag {
-      font-size: 11px;
-      opacity: .85;
-      margin-bottom: 4px
-    }
-
-    .sticker {
-      width: 160px;
-      height: auto;
-    }
-
-    .send-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 10px
-    }
+    .send-row { display: flex; gap: 8px; align-items: center; margin-top: 10px }
 
     .logs {
       display: none;
@@ -234,12 +164,9 @@
       border-radius: 8px
     }
 
-    .log-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 6px;
-    }
+    .log-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+
+    #cardAuth { display: block; }
 
     .site-footer {
       position: fixed;
@@ -280,33 +207,15 @@
       animation: spin 1s linear infinite
     }
 
-    @keyframes spin {
-      to {
-        transform: rotate(360deg)
-      }
-    }
+    @keyframes spin { to { transform: rotate(360deg) } }
 
-    @media (max-width: 1100px) {
-      .split-wrap {
-        grid-template-columns: 1fr
-      }
-    }
-
+    @media (max-width: 1100px) { .split-wrap { grid-template-columns: 1fr } }
     @media (max-width: 900px) {
-      main {
-        grid-template-columns: 1fr
-      }
-
-      #chatCard {
-        grid-column: 1 / -1;
-        grid-row: auto
-      }
+      main { grid-template-columns: 1fr }
+      #chatCard { grid-column: 1 / -1; grid-row: auto }
     }
 
-    a {
-      text-decoration: none;
-      color: var(--ok);
-    }
+    a { text-decoration: none; color: var(--ok); }
   </style>
 </head>
 
@@ -317,8 +226,8 @@
   </header>
 
   <main>
-    <section class="card">
-      <h4>Autenticação do Painel</h4>
+    <button id="toggleAutBtn" type="button">Ocultar Autenticacao</button>
+    <section class="card" id="cardAuth">
       <p class="muted">No celular: Ajustes → Aparelhos conectados → Conectar aparelho. Escaneie o QR abaixo.</p>
       <div class="qr-wrap">
         <div class="spinner" id="qrSpin"></div>
@@ -388,12 +297,12 @@
       </div>
       <div class="logs" id="logs"></div>
     </section>
-
     <section class="site-footer" role="contentinfo" aria-label="Rodapé">
       <div>Desenvolvido por <strong>Samuel Victor</strong></div>
       <a href="https://samuelvictorol.github.io/portfolio/" target="_blank" rel="noopener noreferrer">Portfólio</a>
     </section>
   </main>
+  <div style="margin-bottom: 90px; width: 100% ;height: 1px;;"></div>
 
   <script>
     const statusEl = document.getElementById('status');
@@ -402,6 +311,8 @@
     const qrHintEl = document.getElementById('qrHint');
     const logsEl = document.getElementById('logs');
     const toggleLogsBtn = document.getElementById('toggleLogsBtn');
+    const toggleAutBtn = document.getElementById('toggleAutBtn');
+    const cardAuthEl = document.getElementById('cardAuth');
     const clearLogsBtn = document.getElementById('clearLogsBtn');
     const tokenEl = document.getElementById('token');
     const contactsEl = document.getElementById('contacts');
@@ -439,6 +350,17 @@
     setLogsVisible(false);
     toggleLogsBtn.addEventListener('click', () => setLogsVisible(!state.logsVisible));
     clearLogsBtn.addEventListener('click', () => logsEl.innerHTML = '');
+
+    // ✅ Corrigido: agora alterna a VISIBILIDADE do card de autenticação
+    let authVisible = true;
+    function toggleAutBtnHandler() {
+      authVisible = !authVisible;
+      cardAuthEl.style.display = authVisible ? 'block' : 'none';
+      // Mantém o comportamento de esconder/mostrar o token como bônus de UX
+      tokenEl.type = authVisible ? 'text' : 'password';
+      toggleAutBtn.textContent = authVisible ? 'Ocultar Autenticacao' : 'Mostrar Autenticacao';
+    }
+    toggleAutBtn.addEventListener('click', toggleAutBtnHandler);
 
     function log(obj) {
       if (!state.logsVisible) return;
@@ -605,7 +527,10 @@
       const saved = localStorage.getItem('dash_token') || '';
       if (force && window.es) { try { window.es.close(); } catch (e) { } }
       const url = saved ? `/events?token=${encodeURIComponent(saved)}` : '/events';
-      window.es = new EventSource(url);
+
+      // ✅ Corrigido: cria e usa a mesma instância
+      const es = new EventSource(url);
+      window.es = es;
 
       es.addEventListener('status', (e) => {
         const data = JSON.parse(e.data);
