@@ -279,14 +279,16 @@
       <div class="card">
         <div class="search">
           <input id="q" placeholder="Buscar contato/grupo..." />
-          <button id="refresh" style= "padding:8px 12px;font-size:1rem;border-radius:10px;border:1px solid var(--border);background:var(--card);color:whitesmoke;font-weight: bolder;cursor:pointer">
+          <button id="refresh"
+            style="padding:8px 12px;font-size:1rem;border-radius:10px;border:1px solid var(--border);background:var(--card);color:whitesmoke;font-weight: bolder;cursor:pointer">
             Atualizar</button>
         </div>
         <div id="chatList" class="list"></div>
       </div>
       <div class="card">
         <div id="chatTitle" style="font-weight:700;margin-bottom:8px">Selecione uma conversa</div>
-        <input id="to" placeholder="Número/ID (ex.: 5561...)" style="width:100%;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:8px 10px;margin-bottom:10px" />
+        <input id="to" placeholder="Número/ID (ex.: 5561...)"
+          style="width:100%;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:8px 10px;margin-bottom:10px" />
         <div id="msgList" class="msgList"></div>
         <div class="composer" style="display:flex;gap:8px;margin-top:10px">
           <!-- a beautiful input and button -->
@@ -297,8 +299,10 @@
             Enviar</button>
         </div>
         <div class="composer" style="display:flex;gap:8px;margin-top:10px">
-          <input id="file" type="file" style="cursor: pointer;flex:1;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:8px 10px" />
-          <button id="sendMedia" style="padding:8px 12px;font-size:1rem;border-radius:10px;border:1px solid var(--border);background:var(--ok);color:#1E2126;font-weight: bolder;cursor:pointer">
+          <input id="file" type="file"
+            style="cursor: pointer;flex:1;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:8px 10px" />
+          <button id="sendMedia"
+            style="padding:8px 12px;font-size:1rem;border-radius:10px;border:1px solid var(--border);background:var(--ok);color:#1E2126;font-weight: bolder;cursor:pointer">
             Enviar Mídia</button>
         </div>
       </div>
@@ -370,7 +374,27 @@
     let chats = [];
     let currentChatId = null;
     let currentKey = null;
-    const shownIds = new Set();
+
+    // guarda vistos por ID e por assinatura (chat+tipo+texto+janela)
+    const seen = new Set();
+    function sig(m) {
+      // assinatura robusta p/ dedupe quando o ID difere
+      const key = messageKey(m) || '';
+      const typ = m.type || '';
+      const body = (m.body || '').trim();
+      const bucket = Math.floor((m.timestamp || Date.now()) / 10000); // 10s
+      return `${key}|${typ}|${body}|${bucket}`;
+    }
+    function markSeen(m) {
+      if (!m) return;
+      if (m.id) seen.add('id:' + m.id);
+      seen.add('sig:' + sig(m));
+    }
+    function isSeen(m) {
+      if (!m) return false;
+      if (m.id && seen.has('id:' + m.id)) return true;
+      return seen.has('sig:' + sig(m));
+    }
 
     function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, m => ({ '&': '&', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
     function fmt(ts) { return new Date(ts || Date.now()).toLocaleString(); }
@@ -399,9 +423,9 @@
       try {
         const m = JSON.parse(ev.data);
         const key = messageKey(m);
-        if (key && currentKey && key === currentKey && !shownIds.has(m.id)) {
+        if (key && currentKey && key === currentKey && !isSeen(m)) {
           appendMsg(m);
-          if (m.id) shownIds.add(m.id);
+          markSeen(m);
         }
       } catch { }
     });
@@ -441,8 +465,8 @@
       msgList.innerHTML = '';
       try {
         const msgs = await fetch(`/api/chat/${encodeURIComponent(ch.id)}/messages?limit=50`).then(r => r.json());
-        shownIds.clear();
-        for (const m of msgs) { appendMsg(m); if (m.id) shownIds.add(m.id); }
+        seen.clear();
+        for (const m of msgs) { appendMsg(m); markSeen(m); }
         msgList.scrollTop = msgList.scrollHeight;
       } catch (e) { console.error(e); }
     }
@@ -513,7 +537,7 @@
         // otimista
         const now = Date.now();
         const m = { id: r.id, fromMe: true, to, chatId: to, body, type: 'chat', timestamp: now };
-        appendMsg(m); if (m.id) shownIds.add(m.id);
+        if (!isSeen(m)) { appendMsg(m); markSeen(m); }
         inputText.value = '';
       } catch (e) { alert('Erro: ' + e.message); }
     };
@@ -533,7 +557,7 @@
         // otimista
         const now = Date.now();
         const m = { id: r.id, fromMe: true, to, chatId: to, body: (inputText.value || ''), type: 'media', timestamp: now };
-        appendMsg(m); if (m.id) shownIds.add(m.id);
+        if (!isSeen(m)) { appendMsg(m); markSeen(m); }
         inputText.value = ''; inputFile.value = '';
       } catch (e) { alert('Erro: ' + e.message); }
     };
