@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+    rel="stylesheet">
+  <!-- miniatura na aba do navegador com url src -->
+  <link rel="icon" type="image/png"
+    href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/1198px-WhatsApp.svg.png">
+  <title>WhatsApp Logger</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --fg: #e8eef6;
+      --muted: #99a7b6;
+      --card: rgba(255, 255, 255, .06);
+      --border: rgba(255, 255, 255, .08);
+      --ok: #7af59b;
+      --bad: #ff7b7b;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell;
+      font-family: "Montserrat", sans-serif;
+      background: var(--bg);
+      color: var(--fg)
+    }
+
+    header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    header h1 {
+      font-size: 18px;
+      margin: 0
+    }
+
+    nav {
+      display: flex;
+      gap: 12px;
+      margin-left: auto
+    }
+
+    nav button {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer
+    }
+
+    nav button.active {
+      outline: 2px solid var(--ok)
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px;
+      display: none
+    }
+
+    main.active {
+      display: block
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px
+    }
+
+    .qr {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .03)
+    }
+
+    .qr img {
+      width: 260px;
+      height: 260px;
+      image-rendering: pixelated;
+      border-radius: 8px
+    }
+
+    .status {
+      font-size: 14px;
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+      align-items: center
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%
+    }
+
+    .dot.ok {
+      background: var(--ok)
+    }
+
+    .dot.bad {
+      background: var(--bad)
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      color: #c6d3e2;
+      max-height: 360px;
+      overflow: auto;
+      margin: 0
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    @media(max-width:900px) {
+      .grid2 {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px
+    }
+
+    .search {
+      display: flex;
+      gap: 8px
+    }
+
+    .search input {
+      flex: 1;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--fg);
+      padding: 8px 10px
+    }
+
+    .list {
+      max-height: 70vh;
+      overflow: auto
+    }
+
+    .chatItem {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer
+    }
+
+    .chatItem:hover {
+      background: rgba(255, 255, 255, .03)
+    }
+
+    .chatItem .title {
+      font-weight: 600
+    }
+
+    .chatItem .sub {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .msgList {
+      height: 60vh;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, .02)
+    }
+
+    .bubble {
+      max-width: 70%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      margin: 6px 0;
+      word-break: break-word;
+      line-height: 1.3
+    }
+
+    .me {
+      background: rgba(122, 245, 155, .12);
+      border: 1px solid rgba(122, 245, 155, .3);
+      margin-left: auto
+    }
+
+    .them {
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid var(--border);
+      margin-right: auto
+    }
+
+    .media {
+      max-width: 260px;
+      display: block;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin: 6px 0
+    }
+
+    .time {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M12 2C6.477 2 2 6.477 2 12c0 1.86.507 3.6 1.389 5.093L2 22l4.98-1.279A9.955 9.955 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2Z"
+        stroke="currentColor" stroke-width="1.5" />
+      <path d="M7 9.5c.5 3 3.5 6 6.5 6.5M14 16s1-1 2-2" stroke="currentColor" stroke-width="1.5"
+        stroke-linecap="round" />
+    </svg>
+    <h1>WhatsApp Logger</h1>
+    <nav>
+      <button id="tabStatus" class="active">Status & QR</button>
+      <button id="tabChats">Conversas</button>
+    </nav>
+  </header>
+
+  <main id="statusTab" class="active">
+    <div class="grid2">
+      <div class="card">
+        <div class="status">
+          <div id="dot" class="dot bad"></div>
+          <div id="state">Status: desconectado</div>
+        </div>
+        <div class="qr"><img id="qr" alt="QR code" /></div>
+        <p class="muted">Após escanear, o QR some e a sessão persiste no volume (inclui WhatsApp Business).</p>
+      </div>
+      <div class="card">
+        <b>Logs</b>
+        <pre id="logs"></pre>
+      </div>
+    </div>
+  </main>
+
+  <main id="chatsTab">
+    <div class="layout">
+      <div class="card">
+        <div class="search">
+          <input id="q" placeholder="Buscar contato/grupo..." />
+          <button id="refresh" style= "padding:8px 12px;font-size:1rem;border-radius:10px;border:1px solid var(--border);background:var(--card);color:whitesmoke;font-weight: bolder;cursor:pointer">
+            Atualizar</button>
+        </div>
+        <div id="chatList" class="list"></div>
+      </div>
+      <div class="card">
+        <div id="chatTitle" style="font-weight:700;margin-bottom:8px">Selecione uma conversa</div>
+        <input id="to" placeholder="Número/ID (ex.: 5561...)" style="width:100%;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:8px 10px;margin-bottom:10px" />
+        <div id="msgList" class="msgList"></div>
+        <div class="composer" style="display:flex;gap:8px;margin-top:10px">
+          <!-- a beautiful input and button -->
+          <input id="text" type="text" placeholder="Digite uma mensagem..."
+            style="flex:1;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:8px 10px" />
+          <button id="sendText"
+            style="padding:8px 12px;font-size:1rem;border-radius:10px;border:1px solid var(--border);background:var(--ok);color:#1E2126;font-weight: bolder;cursor:pointer">
+            Enviar</button>
+        </div>
+        <div class="composer" style="display:flex;gap:8px;margin-top:10px">
+          <input id="file" type="file" style="cursor: pointer;flex:1;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:8px 10px" />
+          <button id="sendMedia" style="padding:8px 12px;font-size:1rem;border-radius:10px;border:1px solid var(--border);background:var(--ok);color:#1E2126;font-weight: bolder;cursor:pointer">
+            Enviar Mídia</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ------------ Tabs
+    const tabStatus = document.getElementById('tabStatus');
+    const tabChats = document.getElementById('tabChats');
+    const statusTab = document.getElementById('statusTab');
+    const chatsTab = document.getElementById('chatsTab');
+    function activate(tab) {
+      for (const el of [tabStatus, tabChats]) el.classList.remove('active');
+      for (const el of [statusTab, chatsTab]) el.classList.remove('active');
+      if (tab === 'status') { tabStatus.classList.add('active'); statusTab.classList.add('active'); }
+      if (tab === 'chats') { tabChats.classList.add('active'); chatsTab.classList.add('active'); loadChats(); }
+    }
+    tabStatus.onclick = () => activate('status');
+    tabChats.onclick = () => activate('chats');
+
+    // ------------ Status & logs
+    const dot = document.getElementById('dot');
+    const stateE = document.getElementById('state');
+    const logs = document.getElementById('logs');
+    const qrImg = document.getElementById('qr');
+
+    function setState(s, ready) {
+      stateE.textContent = 'Status: ' + s + (ready ? ' (ok)' : '');
+      dot.className = 'dot ' + (ready ? 'ok' : 'bad');
+    }
+    function appendLog(msg) {
+      const t = new Date().toLocaleTimeString();
+      logs.textContent = `[${t}] ${msg}\n` + logs.textContent;
+    }
+    async function refreshStatusOnce() {
+      try {
+        const s = await fetch('/status').then(r => r.json());
+        setState(s.state || 'UNKNOWN', !!s.ready);
+      } catch { }
+    }
+    refreshStatusOnce();
+
+    // ------------ SSE
+    const es = new EventSource('/events');
+    es.addEventListener('state', ev => {
+      try {
+        const data = JSON.parse(ev.data);
+        const s = (data.state || data).state || data.state || 'UNKNOWN';
+        setState(s, s === 'CONNECTED' || s === 'OPEN' || s === 'ready');
+      } catch { }
+    });
+    es.addEventListener('ready', () => { setState('CONNECTED', true); qrImg.src = ''; });
+    es.addEventListener('qr', ev => { try { const d = JSON.parse(ev.data); if (d.dataURL) qrImg.src = d.dataURL; } catch { } });
+    es.addEventListener('log', ev => { try { const d = JSON.parse(ev.data); if (d.message) appendLog(d.message); } catch { } });
+
+    // ------------ Conversas UI
+    const chatList = document.getElementById('chatList');
+    const q = document.getElementById('q');
+    const refreshBt = document.getElementById('refresh');
+    const msgList = document.getElementById('msgList');
+    const chatTitle = document.getElementById('chatTitle');
+    const inputTo = document.getElementById('to');
+    const inputText = document.getElementById('text');
+    const inputFile = document.getElementById('file');
+    const btnSendText = document.getElementById('sendText');
+    const btnSendMedia = document.getElementById('sendMedia');
+
+    let chats = [];
+    let currentChatId = null;
+    let currentKey = null;
+    const shownIds = new Set();
+
+    function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, m => ({ '&': '&', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+    function fmt(ts) { return new Date(ts || Date.now()).toLocaleString(); }
+
+    // normaliza id para comparar (c.us vs lid vs grupo)
+    function jidKey(jid) {
+      if (!jid) return null;
+      const s = String(jid);
+      if (s.endsWith('@g.us')) return 'g:' + s.split('@')[0];
+      const digits = s.replace(/@[^]*$/, '').replace(/\D+/g, '');
+      return digits ? 'u:' + digits : s;
+    }
+    function messageKey(m) {
+      if (!m) return null;
+      if (m.chatId && String(m.chatId).endsWith('@g.us')) return jidKey(m.chatId);
+      return m.fromMe ? jidKey(m.to || m.chatId) : jidKey(m.from || m.chatId);
+    }
+    function mediaSrc(m) {
+      if (!m || !m.media) return null;
+      if (m.media.dataURL) return m.media.dataURL;
+      if (m.media.file) return '/media/' + m.media.file;
+      return null;
+    }
+
+    es.addEventListener('message', ev => {
+      try {
+        const m = JSON.parse(ev.data);
+        const key = messageKey(m);
+        if (key && currentKey && key === currentKey && !shownIds.has(m.id)) {
+          appendMsg(m);
+          if (m.id) shownIds.add(m.id);
+        }
+      } catch { }
+    });
+
+    refreshBt.onclick = loadChats;
+    q.oninput = renderChats;
+
+    async function loadChats() {
+      try { chats = await fetch('/api/chats').then(r => r.json()); renderChats(); }
+      catch (e) { console.error(e); }
+    }
+    function renderChats() {
+      const term = (q.value || '').toLowerCase();
+      chatList.innerHTML = '';
+      for (const ch of (Array.isArray(chats) ? chats : [])) {
+        if (term && !(ch.name?.toLowerCase().includes(term) || ch.id?.includes(term))) continue;
+        const div = document.createElement('div');
+        div.className = 'chatItem';
+        div.innerHTML = `
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center">💬</div>
+          <div style="flex:1">
+            <div class="title">${escapeHtml(ch.name || '(sem nome)')}</div>
+            <div class="sub">${ch.lastMessage ? escapeHtml((ch.lastMessage.fromMe ? 'Você: ' : '') + (ch.lastMessage.body || ch.lastMessage.type)) : '&nbsp;'}</div>
+          </div>
+          ${ch.unread ? `<div style="background:var(--ok);color:#052;min-width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:12px">${ch.unread}</div>` : ''}
+        `;
+        div.onclick = () => openChat(ch);
+        chatList.appendChild(div);
+      }
+    }
+
+    async function openChat(ch) {
+      currentChatId = ch.id;
+      currentKey = jidKey(ch.id);
+      chatTitle.textContent = ch.name || ch.id;
+      inputTo.value = ch.id;
+      msgList.innerHTML = '';
+      try {
+        const msgs = await fetch(`/api/chat/${encodeURIComponent(ch.id)}/messages?limit=50`).then(r => r.json());
+        shownIds.clear();
+        for (const m of msgs) { appendMsg(m); if (m.id) shownIds.add(m.id); }
+        msgList.scrollTop = msgList.scrollHeight;
+      } catch (e) { console.error(e); }
+    }
+
+    function appendMsg(m) {
+      const wrap = document.createElement('div');
+      wrap.style.display = 'flex';
+      wrap.style.flexDirection = 'column';
+
+      const mine = !!m.fromMe;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + (mine ? 'me' : 'them');
+
+      if (m.body) bubble.appendChild(document.createTextNode(m.body));
+
+      if (m.media && (m.media.dataURL || m.media.file || m.media.mimetype)) {
+        const src = mediaSrc(m);
+        const mt = (m.media.mimetype || '').toLowerCase();
+
+        if (src && mt.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = src; img.className = 'media';
+          bubble.appendChild(img);
+        } else if (src && mt.startsWith('audio/')) {
+          const au = document.createElement('audio');
+          au.src = src; au.controls = true; au.className = 'media';
+          bubble.appendChild(au);
+        } else if (src && mt === 'image/webp') { // figurinha
+          const img = document.createElement('img');
+          img.src = src; img.className = 'media';
+          bubble.appendChild(img);
+        } else if (src) {
+          const a = document.createElement('a');
+          a.href = src; a.textContent = 'Baixar mídia'; a.download = 'media';
+          bubble.appendChild(a);
+        } else {
+          const small = document.createElement('div');
+          small.className = 'time';
+          small.textContent = 'mídia recebida — carregando...';
+          bubble.appendChild(small);
+        }
+      }
+
+      wrap.appendChild(bubble);
+      const ts = document.createElement('div');
+      ts.className = 'time';
+      ts.textContent = fmt(m.timestamp);
+      wrap.appendChild(ts);
+
+      msgList.appendChild(wrap);
+      if (msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight < 120) {
+        msgList.scrollTop = msgList.scrollHeight;
+      }
+    }
+
+    // Envio texto
+    document.getElementById('sendText').onclick = async () => {
+      const to = inputTo.value.trim();
+      const body = inputText.value.trim();
+      if (!to || !body) return alert('Preencha destino e mensagem');
+      try {
+        const r = await fetch('/api/send-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, body })
+        }).then(r => r.json());
+        if (r.error) throw new Error(r.error);
+        // otimista
+        const now = Date.now();
+        const m = { id: r.id, fromMe: true, to, chatId: to, body, type: 'chat', timestamp: now };
+        appendMsg(m); if (m.id) shownIds.add(m.id);
+        inputText.value = '';
+      } catch (e) { alert('Erro: ' + e.message); }
+    };
+
+    // Envio mídia
+    document.getElementById('sendMedia').onclick = async () => {
+      const to = inputTo.value.trim();
+      const f = inputFile.files[0];
+      if (!to || !f) return alert('Selecione destino e um arquivo');
+      const fd = new FormData();
+      fd.append('to', to);
+      fd.append('file', f, f.name);
+      fd.append('caption', inputText.value || '');
+      try {
+        const r = await fetch('/api/send-media', { method: 'POST', body: fd }).then(r => r.json());
+        if (r.error) throw new Error(r.error);
+        // otimista
+        const now = Date.now();
+        const m = { id: r.id, fromMe: true, to, chatId: to, body: (inputText.value || ''), type: 'media', timestamp: now };
+        appendMsg(m); if (m.id) shownIds.add(m.id);
+        inputText.value = ''; inputFile.value = '';
+      } catch (e) { alert('Erro: ' + e.message); }
+    };
+  </script>
+</body>
+
+</html>
