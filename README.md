@@ -1,15 +1,18 @@
 
-# WhatsApp Logger — Sessão Persistente (Docker)
+# <img width="32px" height="32px" alt="whatsapp logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/1198px-WhatsApp.svg.png" /> WhatsApp Logger + MongoDB
+- 📲 CONECTE e AUTOMATIZE seu WhatsApp com a API da <strong>WhatsApp Logger</strong>!
 
-Sessão persistente via `whatsapp-web.js` com **Docker**, **MongoDB** (opcional) e **frontend** com QR, conversas e mensagens em tempo real — incluindo **envios feitos no painel ou em outros dispositivos**.
+<img width="1003" height="476" alt="image" src="https://github.com/user-attachments/assets/3dc36e52-a6fe-4b7c-ac20-9a65d0a6fb66" />
 
-## Novidades desta versão
-- **Dockerfile** com `COPY package*.json` + `npm install --omit=dev --no-audit --no-fund`.
-- **Resolução LID** automática (getNumberId) antes de enviar.
-- **Realtime de mensagens enviadas e recebidas** (SSE):
-  - `message` (incoming) e `message_create` (outgoing ou de outros dispositivos).
-  - Emissão **imediata** após `sendMessage` para melhor UX.
-- **Persistência no MongoDB** em tempo real (upsert por `_id` = id da mensagem). TTL opcional.
+
+<img width="1911" height="545" alt="image" src="https://github.com/user-attachments/assets/640ad562-6c12-4a87-aa43-e1b3c18dbc8f" />
+
+> Sessão persistente via `whatsapp-web.js` com **Docker**, **MongoDB** e **frontend** com html,css e js QR, conversas e mensagens em tempo real — incluindo **envios feitos no painel ou em outros dispositivos**.
+
+# Como Usar?
+- [ ] Na aba 'Status e QR' escaneie o QR Code com seu aplicativo do whatsapp e adicione um novo acesso.
+- [ ] Após conectar, clique na aba 'Conversas' e veja seu painel de chats em tempo real.
+- [ ] Utilize os endpoints de envio de mensagens e mídias para integrar com suas aplicações.
 
 ## Variáveis de ambiente
 Veja `.env.example`. Principais:
@@ -31,6 +34,4 @@ Acesse: `http://localhost:10000`
 - `POST /api/send-media` (multipart `file` ou `{to, mimetype, base64, caption}`)
 - `GET /events` (SSE): `state`, `qr`, `log`, `message`, `message_ack`
 
-## Persistência Mongo
-Cada `bus.emit('message')` grava no Mongo. Campos: `_id`, `chatId`, `from`, `to`, `fromMe`, `type`, `body`, `hasMedia`, `media`, `ack`, `isStatus`, `timestamp`, `createdAt`.
-Se `MSG_TTL_DAYS>0`, criamos índice TTL em `createdAt`.
+> por Samuel Victor - https://samuelvictorol.github.io/portfolio
